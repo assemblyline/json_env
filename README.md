@@ -1,5 +1,7 @@
 # JSONenv
 
+[![Build Status](https://travis-ci.org/assemblyline/json_env.svg?branch=master)](https://travis-ci.org/assemblyline/json_env)
+
 ## Instalation
 
 `go install https://github.com/assemblyline/json_env`
