@@ -7,52 +7,66 @@ import (
 	"testing"
 )
 
-func jsonEnv() map[string]string {
+func parseEnv(vars string) map[string]string {
 	var env map[string]string
-	if err := json.Unmarshal([]byte(Env()), &env); err != nil {
+	if err := json.Unmarshal([]byte(Env(vars, "Json")), &env); err != nil {
 		panic(err)
 	}
 	return env
 }
 
 func TestJsonEnv(t *testing.T) {
-	Convey("json.Env", t, func() {
+	Convey("Env", t, func() {
 
-		Convey("When JSON_ENV is not set", func() {
-			Convey("the JSON output is empty", func() {
-				So(Env(), ShouldEqual, "{\"\":\"\"}")
-			})
-
+		Convey("an unsupported format", func() {
+			So(Env("FOO", "sausages"), ShouldEqual, "")
 		})
 
-		Convey("When JSON_ENV is set", func() {
-
-			os.Setenv("JSON_ENV", "FOO,BAR")
+		Convey("The js format", func() {
 			os.Setenv("FOO", "foo-foo")
-			os.Setenv("BAR", "bar_snack")
 
-			Convey("the JSON output contains the vars set", func() {
-				So(jsonEnv()["FOO"], ShouldEqual, "foo-foo")
-				So(jsonEnv()["BAR"], ShouldEqual, "bar_snack")
+			Convey("the output wraps the json in some javascript", func() {
+				So(Env("FOO", "js"), ShouldEqual, "window.ENV = {\"FOO\":\"foo-foo\"};")
+				So(Env("FOO", "JS"), ShouldEqual, "window.ENV = {\"FOO\":\"foo-foo\"};")
+			})
+		})
+		Convey("the json format", func() {
+
+			Convey("When vars is not set", func() {
+				Convey("the JSON output is empty", func() {
+					So(jsonEnv(""), ShouldEqual, "{\"\":\"\"}")
+				})
+
 			})
 
-			Convey("the JSON output includes unset vars as empty string values", func() {
-				os.Setenv("JSON_ENV", "BAZ,boz")
-				os.Setenv("boz", "boop")
+			Convey("When the vars is set", func() {
 
-				So(Env(), ShouldContainSubstring, "BAZ")
-				So(jsonEnv()["BAZ"], ShouldEqual, "")
-				So(Env(), ShouldContainSubstring, "boz\":\"boop")
-				So(jsonEnv()["boz"], ShouldEqual, "boop")
-			})
+				os.Setenv("FOO", "foo-foo")
+				os.Setenv("BAR", "bar_snack")
 
-			Convey("does not include any vars not in JSON_ENV", func() {
-				os.Setenv("BOOO", "NOT_HERE")
-				So(Env(), ShouldNotContainSubstring, "BOOO")
-				So(Env(), ShouldNotContainSubstring, "NOT_HERE")
+				Convey("the JSON output contains the vars set", func() {
+					So(parseEnv("FOO,BAR")["FOO"], ShouldEqual, "foo-foo")
+					So(parseEnv("FOO,BAR")["BAR"], ShouldEqual, "bar_snack")
+				})
+
+				Convey("the JSON output includes unset vars as empty string values", func() {
+					os.Setenv("boz", "boop")
+
+					So(Env("BAZ,boz", "json"), ShouldContainSubstring, "BAZ")
+					So(parseEnv("BAZ,boz")["BAZ"], ShouldEqual, "")
+					So(Env("BAZ,boz", "json"), ShouldContainSubstring, "boz\":\"boop")
+					So(parseEnv("BAZ,boz")["boz"], ShouldEqual, "boop")
+				})
+
+				Convey("does not include any vars not in vars", func() {
+					os.Setenv("BOOO", "NOT_HERE")
+					So(Env("", "json"), ShouldNotContainSubstring, "BOOO")
+					So(Env("", "json"), ShouldNotContainSubstring, "NOT_HERE")
+				})
+
 			})
 
 		})
-
 	})
+
 }
