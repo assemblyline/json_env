@@ -2,45 +2,83 @@ package main
 
 import (
 	"encoding/json"
-	"flag"
 	"fmt"
+	"github.com/jawher/mow.cli"
 	"os"
 	"strings"
 )
 
-var format, vars string
-
-func init() {
-	flag.StringVar(&format, "f", "", "output format - js or json")
-	flag.StringVar(&vars, "v", "", "The Environment Variables to expose")
-	flag.Parse()
-}
-
 func main() {
-	fmt.Println(Env(vars, format))
+        fmt.Println(Cli(os.Args))
 }
 
-func Env(vars string, format string) string {
-	switch strings.ToLower(format) {
-	case "json":
-		return jsonEnv(vars)
-	case "js":
-		return jsEnv(vars)
-	}
-	return ""
+func Cli(args []string) string {
+  jsonEnv := cli.App("json_env", "Expose ENV as json")
+  jsonEnv.Spec = "(--js | --json) (-e...| -v...)"
+  var (
+    json    = jsonEnv.BoolOpt("json", false, "json format")
+    js      = jsonEnv.BoolOpt("js", false, "js format")
+    vars    = jsonEnv.StringsOpt("v vars", nil, "Envronment Variables to include")
+    exclude = jsonEnv.StringsOpt("e exclude", nil, "Envronment Variables to exclude")
+    output string
+  )
+  
+  jsonEnv.Action = func() {
+    env := Env(*vars, *exclude)
+    if *json {
+      output = Json(env)
+    }
+    if *js {
+      output = Js(env)
+    }
+  }
+  jsonEnv.Run(args)
+  return output
 }
 
-func jsonEnv(vars string) string {
-	env := make(map[string]string)
-
-	for _, e := range strings.Split(vars, ",") {
-		env[e] = os.Getenv(e)
-	}
-
+func Json(env map[string]string) string {
 	envJson, _ := json.Marshal(env)
 	return string(envJson)
 }
 
-func jsEnv(vars string) string {
-	return "window.ENV = " + jsonEnv(vars) + ";"
+func Js(env map[string]string) string {
+	return "window.ENV = " + Json(env) + ";"
+}
+
+func Env(vars []string, exclude []string) map[string]string {
+	if len(vars) != 0 {
+		return selectFromEnv(vars)
+	}
+	if len(exclude) != 0 {
+		return envWithout(exclude)
+	}
+        return envWithout(nil)
+}
+
+func selectFromEnv(vars []string) map[string]string {
+	env := make(map[string]string)
+	for _, e := range vars {
+		env[e] = os.Getenv(e)
+	}
+	return env
+}
+
+func envWithout(exclude []string) map[string]string {
+	env := make(map[string]string)
+	for _, e := range os.Environ() {
+		pair := strings.Split(e, "=")
+		if !contains(exclude, pair[0]) {
+			env[pair[0]] = pair[1]
+		}
+	}
+	return env
+}
+
+func contains(s []string, e string) bool {
+	for _, a := range s {
+		if a == e {
+			return true
+		}
+	}
+	return false
 }

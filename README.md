@@ -20,11 +20,14 @@ GOPATH=/Users/ed/go
 FOO=fooming_at_the_mouth
 BAR=bar_snacks
 
-$ json_env -f json -v BAR,FOO
+$ json_env -f json -v BAR -v FOO
 {"BAR":"bar_snacks","FOO":"fooming_at_the_mouth"}
 
 $ json_env -f js -v EDITOR
 window.ENV = {"EDITOR":"vim"};
+
+$ json_env -f js -e SHELL -e EDITOR -e TERM -e HOME -e GOPATH
+window.ENV = {"FOO":"fooming_at_the_mouth","BAR":"bar_snacks"};
 ```
 ## Licence
 
